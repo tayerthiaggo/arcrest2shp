@@ -1,6 +1,6 @@
 # ArcREST2shp
 
-ArcREST2SHP is a Python script that allows you to access an ArcGIS REST Services Directory, extract GeoJSON data (using [esri-dump](https://github.com/openaddresses/pyesridump)), convert it into shapefiles, and generate a CSV file with all the extracted data. 
+ArcREST2SHP allows you to access an ArcGIS REST Services Directory, extract GeoJSON data (using [esri-dump](https://github.com/openaddresses/pyesridump)), convert it into shapefiles, and generate a CSV file with all the extracted data. 
 
 ## Clone the Repository
 To get started, you can clone this repository to your local machine using Git. Follow the steps below to clone the repository:
