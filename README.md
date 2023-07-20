@@ -41,7 +41,7 @@ pip install -r requirements.txt
 Ensure that the arcrest2shp_utils module is available in the same directory as the script or in the Python environment where you execute the script.
 Depending on the volume of data and your system's capabilities, you may adjust the num_threads parameter to optimize performance.
 
-## Usage
+## Example
 Now that you have the repository cloned and the dependencies installed, follow the usage instructions provided earlier to run the arcrest2shp.py script and the Jupyter Notebook example.
 
 ```python
@@ -56,5 +56,7 @@ num_threads = 5
 
 arcrest2shp(url_base, shp, out_path, crs, num_threads)
 ```
+
+In this example, data will be downloaded from the URL "https://example.com/data/" and saved as shapefiles in the "output_folder/" after clipping with the specified shapefile. The CRS is set to EPSG:4326, and the script will use 5 threads for concurrent processing.
 
 Please ensure that you have the necessary permissions to access the ArcGIS REST Services Directory and the data it contains. Modify the input parameters in the Jupyter Notebook example to suit your specific use case.
