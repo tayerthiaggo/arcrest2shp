@@ -41,7 +41,7 @@ arcrest2shp(url_base, shp, out_path, crs, num_threads)
 In this example, data will be downloaded from the URL "https://example.com/data/" and saved as shapefiles in the "output_folder/" after clipping with the specified shapefile. The CRS is set to EPSG:4326, and the script will use 5 threads for concurrent processing.
 
 ## How it works
-1. Downloading data: The script explores the provided url_base and all nested URLs under it and retrieves links containing spatial data (vectors). The data is downloaded as GeoJSON files.
+1. Downloading data: The script explores the provided url_base and all nested URLs under it and retrieves all links containing spatial data (vectors). The data is downloaded as GeoJSON files.
 2. Clipping and exporting: The downloaded GeoJSON files are clipped using the provided shapefile (shp) and CRS (crs) information. The resulting clipped data is saved as shapefiles.
 3. Concurrent processing: The script utilizes concurrent processing using ThreadPoolExecutor with the number of threads specified by the num_threads parameter. This accelerates the data retrieval and conversion process.
 4. Folder and file organization: The script creates the necessary folders for storing the data. It organizes the downloaded data in the output folder with separate folders for GeoJSON and shapefiles and generates a CSV file with all the extracted data.
