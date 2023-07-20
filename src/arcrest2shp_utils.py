@@ -9,7 +9,7 @@ import re
 import csv
 import datetime
 import concurrent.futures
-
+import time
 
 def create_folder (out_path, folder_name='extracted_data'):
     """
@@ -31,12 +31,6 @@ def create_folder (out_path, folder_name='extracted_data'):
         print('Folder already exists', export_path)
 
     return export_path
-
-
-
-
-import time
-
 def retrieve_links (url, cache):
     """
     Retrieve all links from a webpage.
@@ -64,7 +58,6 @@ def retrieve_links (url, cache):
 
             # Parse the HTML content using BeautifulSoup
             soup = BeautifulSoup(response.content, 'html.parser')
-
             # Find all <li> elements
             li_tags = soup.find_all('li')
 
@@ -87,7 +80,6 @@ def retrieve_links (url, cache):
 
     print('Max_retries achieved for the following url: ', url)
     return None
-
 def process_links(url, cache, visited):
     """
     Recursively process links from a starting URL.
@@ -114,40 +106,39 @@ def process_links(url, cache, visited):
             processed_links.extend(process_links(link, cache, visited))
     return processed_links
 
+## Not used (API protection against attack)
+def process_links_mthread (url, cache, visited, num_threads):
+    """
+    Recursively process links from a starting URL.
 
-# def process_links (url, cache, visited, num_threads):
-#     """
-#     Recursively process links from a starting URL.
+    Args:
+        url (str): The starting URL to process.
+        cache (dict): A dictionary to cache previously retrieved links.
+        visited (set): A set to keep track of visited URLs.
 
-#     Args:
-#         url (str): The starting URL to process.
-#         cache (dict): A dictionary to cache previously retrieved links.
-#         visited (set): A set to keep track of visited URLs.
+    Returns:
+        list: A list of processed links.
 
-#     Returns:
-#         list: A list of processed links.
+    """
 
-#     """
+    if url in visited:
+        return []
+    visited.add(url)  # Mark the current URL as visited
+    links = retrieve_links(url, cache)
+    processed_links = []
 
-#     if url in visited:
-#         return []
-#     visited.add(url)  # Mark the current URL as visited
-#     links = retrieve_links(url, cache)
-#     processed_links = []
+    with concurrent.futures.ThreadPoolExecutor(max_workers=num_threads) as executor:
+        futures = []
+        for link in links:
+            if link not in visited:
+                # Process the link asynchronously
+                future = executor.submit(process_links, link, cache, visited, num_threads)
+                futures.append(future)
 
-#     with concurrent.futures.ThreadPoolExecutor(max_workers=num_threads) as executor:
-#         futures = []
-#         for link in links:
-#             if link not in visited:
-#                 # Process the link asynchronously
-#                 future = executor.submit(process_links, link, cache, visited, num_threads)
-#                 futures.append(future)
+        for future in concurrent.futures.as_completed(futures):
+            processed_links.extend(future.result())
 
-#         for future in concurrent.futures.as_completed(futures):
-#             processed_links.extend(future.result())
-
-#     return processed_links
-
+    return processed_links
 
 def bbox_shp (shp, crs=7844):
     """
@@ -187,25 +178,18 @@ def run_esri2geojson (url, bbox, crs, layer_name, export_path):
         gjson_out_path = 'E:\Scripts\idot_roads5.geojson'
         run_esri2geojson(url, bbox, crs, gjson_out_path)
     """
-    
     geojson_out_path = os.path.join(export_path, 'geojson', f'{layer_name}.geojson')
-
     # Edit geometry for input
     geometry_str = ''.join(['geometry=', ','.join([str(num) for num in bbox])])
-
     # Edit crs for input 
     crs_str = ''.join(['inSR=', str(crs)]) 
-
     # Concatenate the variables with spaces
     command = ' '.join(['esri2geojson',url, '-p', geometry_str, '-p', crs_str, geojson_out_path])
-
     # Execute the command
     result = subprocess.run(command, shell=True, capture_output=True, text=True)
-
     # Check the result
     if result.returncode == 0:
         pass
-
     else:
         print(f'{url} An error occurred while executing the run_esri2geojson.')
 
@@ -234,28 +218,24 @@ def clip_geojson_export_shp (shp, crs,  geojson_out_path, shp_out_path):
         # Call the function to clip and export
         clip_geojson_export_shp(aoi_polygon, input_gjson)
     """
-
     # Read the GeoJSON and shapefile into GeoDataFrames
     geojson_gdf = gpd.read_file(geojson_out_path)
-    
+    # Check if the GeoJSON GeoDataFrame is empty
     if not geojson_gdf.empty:
-        
+        # Convert the GeoJSON GeoDataFrame to the specified coordinate reference system (CRS)
         geojson_gdf = geojson_gdf.to_crs(crs)
+        # Read the shapefile into a GeoDataFrame and convert it to the specified CRS
         shp_gdf = gpd.read_file(shp).to_crs(crs)
-
         # Clip the GeoJSON with the shapefile
         clipped_gdf = gpd.clip(geojson_gdf, shp_gdf)
-
-        if not geojson_gdf.empty:
-
+        # Check if the clipped GeoDataFrame is not empty
+        if not clipped_gdf.empty:
             # Shorten the column names to a maximum of 10 characters
             clipped_gdf = clipped_gdf.rename(columns=lambda x: x[:10])
-
             # Extract the file name without extension
             output_shapefile = f'{os.path.splitext(os.path.basename(geojson_out_path))[0]}.shp'
-
             # Export the clipped GeoDataFrame to a shapefile
-            clipped_gdf.to_file(os.path.join(shp_out_path, output_shapefile), driver='ESRI Shapefile')
+            clipped_gdf.to_file(os.path.join(shp_out_path, output_shapefile))
 
 def check_if_vector (soup):
     """
@@ -268,10 +248,8 @@ def check_if_vector (soup):
         bool: True if the page contains vector geometry type information, False otherwise.
 
     """
-
     # Find all tags that contain the text "esriGeometry"
     cells = soup.find_all(lambda tag: tag.name == 'b' and 'Geometry Type:' in tag.text)
-
     # Check if any cell contains the desired text
     contains_esriGeometry = any('esriGeometry' in cell.next_sibling.strip() for cell in cells)
 
@@ -293,29 +271,22 @@ def info_to_sheets (export_path, soup, layer_name, url):
     """
     # Define the file path
     file_path = os.path.join(export_path, 'extracted_data.csv')
-
     # Extract the geometry type from the soup object
     geometry_type = soup.find('b', string='Geometry Type:').next_sibling.strip()
-
     # Extract the description text from the soup object
     description_text = soup.find('b', string='Description: ').next_sibling.strip()
-
-    # source = '_'.join(layer_name.split('_')[0:1])
+    # Extract the source from the layer_name by splitting it at underscores and taking the first part
     source = layer_name.split('_')[0]
-
     # Get the current date
     extraction_date = datetime.date.today()
-
+    # Create a list containing the extracted data
     data = [source, layer_name, geometry_type, description_text, url, extraction_date]
-
+    # Write the extracted data to the CSV file
     write_csv (file_path, data)
 
-
 def create_csv (export_path):
-
     # Define the file path
     file_path = os.path.join(export_path, 'extracted_data.csv')
-
     #define columns
     columns = ['Source', 'Name', 'Geometry Type', 'Description', 'URL', 'Extraction Date']
     # Check if the file exists
@@ -327,11 +298,9 @@ def create_csv (export_path):
         if not file_exists:
             writer.writerow(columns)
 
-
 def write_csv (file_path, data):
     # Check if the file exists
     file_exists = os.path.isfile(file_path)
-
     # Write the extracted information to the CSV file
     with open(file_path, 'a', newline='') as csvfile:
         writer = csv.writer(csvfile)
@@ -349,27 +318,50 @@ def filter_layer_name (soup):
         str: The filtered and formatted layer name.
 
     """
+    # Check if the page has a 'Name' section
+    name_tag = soup.find('b', string='Name:')
+    # Get the text of the next sibling of the 'Name' section
+    layer_name = name_tag.next_sibling.strip()
+    # Extract content within brackets
+    # The pattern '\((.*?)\)' matches anything within parentheses and captures the content inside the parentheses
+    values_in_parentheses = re.findall(r'\((.*?)\)', layer_name)
+    # Find the values within parentheses that contain both letters and numbers
+    valid_values = [value for value in values_in_parentheses if re.match(r'^(?=.*[A-Za-z])(?=.*\d)[A-Za-z0-9]+', value)]
 
-    # Retrieve the <h2> name ('Layer')
-    h2_tag = soup.find('h2')
-    layer_name = h2_tag.text.split(':')[1].split('(ID')[0].replace(')', '').strip()
+    # If multiple valid values were found, select the last one
+    if len(valid_values) > 1:
+        valid_values = valid_values[-1]
+    else:
+        valid_values = ''.join(valid_values)
 
-    # Check if the page has a 'Parent Layer' section
-    parent_layer_tag = soup.find('b', string='Parent Layer:')
+    if valid_values:
+        # Remove the matched values within parentheses from the layer_name
+        layer_name = layer_name.replace(f"({valid_values})", '').strip()
+    else:
+        # The layer name does not have values within parentheses, check for 'Parent Layer' section
+        parent_layer_tag = soup.find('b', string='Parent Layer:')
 
-    if parent_layer_tag:
-        layer_name = h2_tag.text.split(':')[1].split('(')[0].strip()
+        if parent_layer_tag:
+            # Get the text of the next sibling of the 'Parent Layer' section
+            parent_layer = parent_layer_tag.next_sibling.strip()
+            # Check if there is a link inside 'Parent Layer'
+            parent_layer_link = parent_layer_tag.find_next_sibling('a')
 
-        # layer_name = h2_tag.text.split(':')[1].split('(ID')[0].replace(')', '').strip()
-        parent_layer_link = parent_layer_tag.find_next_sibling('a')
-        if parent_layer_link:
-            parent_layer_name = parent_layer_link.text.split('(')[-1].split(')')[0].strip()
-            layer_name = f"{layer_name}_{parent_layer_name}"
+            if parent_layer_link:
+                # Extract content within parentheses from the link
+                values_in_parentheses = re.findall(r'\((.*?)\)', ''.join(parent_layer_link))
+                # Find the values within parentheses that contain both letters and numbers
+                valid_values = [value for value in values_in_parentheses if re.match(r'^(?=.*[A-Za-z])(?=.*\d)[A-Za-z0-9]+', value)]
+                # If multiple valid values were found, select the last one
+                if len(valid_values) > 1:
+                    valid_values = valid_values[-1]
+                else:
+                    valid_values = ''.join(valid_values)
 
+    # Concatenate the values within parentheses (if any) and the layer_name
+    layer_name = f"{valid_values}_{layer_name}"
     # Replace non-alphanumeric characters with underscores
-    layer_name = re.sub(r'\W+', '_', layer_name)
-
-    layer_name = f"{'_'.join(layer_name.split('_')[-2:])}_{'_'.join(layer_name.split('_')[:-2])}"
+    layer_name = re.sub(r'\W+', '_', layer_name) 
 
     return layer_name
 
@@ -389,74 +381,30 @@ def download_data (url, shp, export_path):
         None
 
     """
-
     # Send a GET request to the URL
     response = requests.get(url)
-
     # Check if the request was successful (HTTP status code 200)
     if response.status_code == 200:
         # Parse the HTML content using BeautifulSoup
         soup = BeautifulSoup(response.content, 'html.parser')
-
-        # Find all <li> elements
+        # Find all <li> elements in the parsed HTML
         for li in soup.find_all('li'):
-
+             # If the <li> element contains <a> tags, skip processing
             if li.find_all('a'):
                 pass
 
             elif check_if_vector (soup):
-
+                # Extract and filter the layer name from the HTML content
                 layer_name = filter_layer_name (soup)
-                  
+                # Export information to sheets
                 info_to_sheets (export_path, soup, layer_name, url)
+                # Get the bounding box and CRS of the shapefile
                 bbox, crs = bbox_shp (shp)
+                # Extract page data to GeoJSON
                 geojson_out_path = run_esri2geojson (url, bbox, crs, layer_name, export_path)
                 break
-
             else:
-                pass
-        
+                pass     
         return geojson_out_path
     else:
         print(url, "\nRequest failed with status code:", response.status_code)
-
-
-
-
-
-# def retrieve_links (url, cache):
-#     """
-#     Retrieve all links from a webpage.
-#     Args:
-#         url (str): The URL of the webpage.
-#         cache (dict): A dictionary to cache previously retrieved links.
-#     Returns:
-#         list: A list of links found on the webpage.
-#     """
-
-#     if url in cache:
-#         return cache[url]
-    
-#     # Send a GET request to the URL
-#     response = requests.get(url)
-#     # Check if the request was successful (HTTP status code 200)
-#     if response.status_code != 200:
-#         print(url, "\nRequest failed with status code:", response.status_code)
-#         return []
-
-#     # Parse the HTML content using BeautifulSoup
-#     soup = BeautifulSoup(response.content, 'html.parser')
-
-#     # Find all <li> elements
-#     li_tags = soup.find_all('li')
-
-#     links = []
-#     for li in li_tags:            
-#         if li.find_all('a'):
-#             # Find all <a> elements within the <li>
-#             a_tags = li.find_all('a')
-#             for a in a_tags:            
-#                 # Extract the link URL from the <a> element
-#                 link = urljoin(url, a.get('href'))
-#                 links.append(link)    
-#     return links
