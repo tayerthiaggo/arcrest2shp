@@ -24,8 +24,6 @@ pip install -r requirements.txt
 ```
 
 ## Example
-Now that you have the repository cloned and the dependencies installed, follow the usage instructions provided earlier to run the arcrest2shp.py script and the Jupyter Notebook example.
-
 ```python
 from arcrest2shp import arcrest2shp
 
@@ -33,21 +31,18 @@ from arcrest2shp import arcrest2shp
 url_base = "https://example.com/data/"
 shp = "path/to/shapefile.shp"
 out_path = "output_folder/"
-crs = 4326
-num_threads = 5
+num_threads = 10
 
 arcrest2shp(url_base, shp, out_path, crs, num_threads)
 ```
-In this example, data will be downloaded from the URL "https://example.com/data/" and saved as shapefiles in the "output_folder/" after clipping with the specified shapefile. The CRS is set to EPSG:4326, and the script will use 5 threads for concurrent processing.
+In this example, data will be downloaded from the URL "https://example.com/data/" and saved as shapefiles in the "output_folder/" after clipping with the specified shapefile. The output files CRS will be the same as the input shapefile, and the script will use ten threads for concurrent processing.
 
 ## How it works
 1. Downloading data: The script explores the provided url_base and all nested URLs under it and retrieves all links containing spatial data (vectors). The data is downloaded as GeoJSON files.
-2. Clipping and exporting: The downloaded GeoJSON files are clipped using the provided shapefile (shp) and CRS (crs) information. The resulting clipped data is saved as shapefiles.
+2. Clipping and exporting: The downloaded GeoJSON files are clipped using the provided shapefile (shp). The resulting clipped data is saved as shapefiles with the same CRS as the input shapefile.
 3. Concurrent processing: The script utilizes concurrent processing using ThreadPoolExecutor with the number of threads specified by the num_threads parameter. This accelerates the data retrieval and conversion process.
-4. Folder and file organization: The script creates the necessary folders for storing the data. It organizes the downloaded data in the output folder with separate folders for GeoJSON and shapefiles and generates a CSV file with all the extracted data.
+4. Folder and file organization: The script creates the necessary data storage folders. It organizes the downloaded data in the output folder with separate folders for GeoJSON and shapefiles and generates a CSV file with all the extracted data.
 
 ## Notes
-Ensure that the arcrest2shp_utils module is available in the same directory as the script or in the Python environment where you execute the script.
+Ensure that the arcrest2shp and arcrest2shp_utils modules are available in the same directory as the script or in the Python environment where you execute the script.
 Depending on the volume of data and your system's capabilities, you may adjust the num_threads parameter to optimize performance.
-
-Please ensure that you have the necessary permissions to access the ArcGIS REST Services Directory and the data it contains. Modify the input parameters in the Jupyter Notebook example to suit your specific use case.
