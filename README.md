@@ -44,7 +44,5 @@ In this example, data will be downloaded from the URL "https://example.com/data/
 4. Folder and file organization: The script creates the necessary data storage folders. It organizes the downloaded data in the output folder with separate folders for GeoJSON and shapefiles and generates a CSV file with all the extracted data.
 
 ## Notes
-Ensure that the arcrest2shp_utils module is available in the same directory as the script or in the Python environment where you execute the script.
+Ensure that the arcrest2shp and arcrest2shp_utils modules are available in the same directory as the script or in the Python environment where you execute the script.
 Depending on the volume of data and your system's capabilities, you may adjust the num_threads parameter to optimize performance.
-
-Please ensure you have the necessary permissions to access the ArcGIS REST Services Directory and the data it contains. Modify the input parameters in the Jupyter Notebook example to suit your specific use case.
