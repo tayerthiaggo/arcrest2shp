@@ -34,8 +34,8 @@ def arcrest2shp (url_base, shp, out_path, crs=7844, num_threads = 10):
     # Filter out links containing 'FS/MapServer' in the URL
         # Edit in the future for other rest servers -- thin is for dataWa
     filtered_data = [value for value in list(visited) if 'FS/MapServer' not in value]
-    # Retrieve bounding box and CRS from the shapefile
-    bbox, crs = bbox_shp (shp, crs)
+    # Retrieve bounding box from the shapefile
+    bbox, crs = bbox_shp (shp)
     # Use ThreadPoolExecutor to execute the function concurrently
     with concurrent.futures.ThreadPoolExecutor(max_workers=num_threads) as executor:
         executor.map(process_url, filtered_data)

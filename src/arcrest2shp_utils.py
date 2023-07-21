@@ -10,6 +10,7 @@ import csv
 import datetime
 import concurrent.futures
 import time
+import warnings
 
 def create_folder (out_path, folder_name='extracted_data'):
     """
@@ -91,7 +92,6 @@ def process_links(url, cache, visited):
 
     Returns:
         list: A list of processed links.
-
     """
     if url in visited:
         return []
@@ -118,7 +118,6 @@ def process_links_mthread (url, cache, visited, num_threads):
 
     Returns:
         list: A list of processed links.
-
     """
 
     if url in visited:
@@ -140,19 +139,14 @@ def process_links_mthread (url, cache, visited, num_threads):
 
     return processed_links
 
-def bbox_shp (shp, crs=7844):
-    """
-    Get the bounding box coordinates of a shapefile.
-    Args:
-        shp (str): Path to the shapefile.
-        crs (int, optional): Coordinate reference system (CRS) code. Default is 7844.
-    Returns:
-        tuple: A tuple containing the bounding box coordinates (list) and the CRS code (int).
-    """
+def bbox_shp (shp):
     # Read the shapefile using geopandas
     gdf = gpd.read_file(shp)
+    # Read the shapefile Coordinate reference system (CRS) code
+    crs = gdf.crs
     # Convert the geometry to the specified CRS and calculate the bounding box
-    bbox = list(gdf.to_crs(crs).total_bounds)
+    bbox = list(gdf.total_bounds)
+
     return bbox, crs
     
 def run_esri2geojson (url, bbox, crs, layer_name, export_path):
@@ -170,13 +164,6 @@ def run_esri2geojson (url, bbox, crs, layer_name, export_path):
 
     Raises:
         subprocess.CalledProcessError: If the 'esri2geojson' command fails to execute.
-
-    Example:
-        url = 'https://services.slip.wa.gov.au/public/rest/services/SLIP_Public_Services/Boundaries/MapServer/2'
-        bbox = [115.8444528, -31.98380876, 116.15245686, -31.70508152]
-        crs = '4326'
-        gjson_out_path = 'E:\Scripts\idot_roads5.geojson'
-        run_esri2geojson(url, bbox, crs, gjson_out_path)
     """
     geojson_out_path = os.path.join(export_path, 'geojson', f'{layer_name}.geojson')
     # Edit geometry for input
@@ -205,20 +192,10 @@ def clip_geojson_export_shp (shp, crs,  geojson_out_path, shp_out_path):
 
     Returns:
         None
-
-    Example:
-        import geopandas as gpd
-
-        # Define the area of interest as a polygon GeoDataFrame
-        aoi_polygon = gpd.read_file('path/to/aoi.shp')
-
-        # Specify the input GeoJSON file
-        input_gjson = 'path/to/input.geojson'
-
-        # Call the function to clip and export
-        clip_geojson_export_shp(aoi_polygon, input_gjson)
     """
-    # Read the GeoJSON and shapefile into GeoDataFrames
+    # Suppress the UserWarning
+    warnings.filterwarnings("ignore", message="Column names longer than 10 characters will be truncated when saved to ESRI Shapefile.")
+    # Read the GeoJSON and shapefile into GeoDataFrames   
     geojson_gdf = gpd.read_file(geojson_out_path)
     # Check if the GeoJSON GeoDataFrame is empty
     if not geojson_gdf.empty:
@@ -228,10 +205,9 @@ def clip_geojson_export_shp (shp, crs,  geojson_out_path, shp_out_path):
         shp_gdf = gpd.read_file(shp).to_crs(crs)
         # Clip the GeoJSON with the shapefile
         clipped_gdf = gpd.clip(geojson_gdf, shp_gdf)
+
         # Check if the clipped GeoDataFrame is not empty
         if not clipped_gdf.empty:
-            # Shorten the column names to a maximum of 10 characters
-            clipped_gdf = clipped_gdf.rename(columns=lambda x: x[:10])
             # Extract the file name without extension
             output_shapefile = f'{os.path.splitext(os.path.basename(geojson_out_path))[0]}.shp'
             # Export the clipped GeoDataFrame to a shapefile
@@ -246,7 +222,6 @@ def check_if_vector (soup):
 
     Returns:
         bool: True if the page contains vector geometry type information, False otherwise.
-
     """
     # Find all tags that contain the text "esriGeometry"
     cells = soup.find_all(lambda tag: tag.name == 'b' and 'Geometry Type:' in tag.text)
@@ -267,7 +242,6 @@ def info_to_sheets (export_path, soup, layer_name, url):
         soup (BeautifulSoup): The BeautifulSoup object representing the parsed HTML.
         layer_name (str): The name of the layer.
         url (str): The URL of the layer.
-
     """
     # Define the file path
     file_path = os.path.join(export_path, 'extracted_data.csv')
@@ -316,7 +290,6 @@ def filter_layer_name (soup):
 
     Returns:
         str: The filtered and formatted layer name.
-
     """
     # Check if the page has a 'Name' section
     name_tag = soup.find('b', string='Name:')
@@ -379,7 +352,6 @@ def download_data (url, shp, export_path):
 
     Raises:
         None
-
     """
     # Send a GET request to the URL
     response = requests.get(url)
