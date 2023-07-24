@@ -33,7 +33,7 @@ shp = "path/to/shapefile.shp"
 out_path = "output_folder/"
 num_threads = 10
 
-arcrest2shp(url_base, shp, out_path, crs, num_threads)
+arcrest2shp(url_base, shp, out_path, num_threads)
 ```
 In this example, data will be downloaded from the URL "https://example.com/data/" and saved as shapefiles in the "output_folder/" after clipping with the specified shapefile. The output files CRS will be the same as the input shapefile, and the script will use ten threads for concurrent processing.
 
