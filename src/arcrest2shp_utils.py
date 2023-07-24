@@ -139,15 +139,15 @@ def process_links_mthread (url, cache, visited, num_threads):
 
     return processed_links
 
-def bbox_shp (shp):
+def bbox_shp (shp, crs):
     # Read the shapefile using geopandas
     gdf = gpd.read_file(shp)
-    # Read the shapefile Coordinate reference system (CRS) code
-    crs = gdf.crs
+    # # Read the shapefile Coordinate reference system (CRS) code
+    # gdf = gdf.to_crs(crs)   
     # Convert the geometry to the specified CRS and calculate the bounding box
-    bbox = list(gdf.total_bounds)
+    bbox = list(gdf.to_crs(crs).total_bounds)
 
-    return bbox, crs
+    return bbox
     
 def run_esri2geojson (url, bbox, crs, layer_name, export_path):
     """
@@ -182,7 +182,7 @@ def run_esri2geojson (url, bbox, crs, layer_name, export_path):
 
     return geojson_out_path
 
-def clip_geojson_export_shp (shp, crs,  geojson_out_path, shp_out_path):
+def clip_geojson_export_shp (shp, geojson_out_path, shp_out_path):
     """
     Clips a GeoJSON file using a polygon GeoDataFrame and exports the clipped data to a shapefile.
 
@@ -195,14 +195,20 @@ def clip_geojson_export_shp (shp, crs,  geojson_out_path, shp_out_path):
     """
     # Suppress the UserWarning
     warnings.filterwarnings("ignore", message="Column names longer than 10 characters will be truncated when saved to ESRI Shapefile.")
+
     # Read the GeoJSON and shapefile into GeoDataFrames   
     geojson_gdf = gpd.read_file(geojson_out_path)
     # Check if the GeoJSON GeoDataFrame is empty
+
     if not geojson_gdf.empty:
-        # Convert the GeoJSON GeoDataFrame to the specified coordinate reference system (CRS)
-        geojson_gdf = geojson_gdf.to_crs(crs)
-        # Read the shapefile into a GeoDataFrame and convert it to the specified CRS
-        shp_gdf = gpd.read_file(shp).to_crs(crs)
+        # Read the shapefile into a GeoDataFrame
+        shp_gdf = gpd.read_file(shp)
+        # Read the shapefile CRS 
+        crs_shp = shp_gdf.crs
+        
+        # Convert the GeoJSON GeoDataFrame to the shapefile coordinate reference system (CRS)
+        geojson_gdf = geojson_gdf.to_crs(crs_shp)
+
         # Clip the GeoJSON with the shapefile
         clipped_gdf = gpd.clip(geojson_gdf, shp_gdf)
 
@@ -281,7 +287,7 @@ def write_csv (file_path, data):
         # Write the new row of data
         writer.writerow(data)
 
-def filter_layer_name (soup):
+def filter_layer_name_and_crs (soup):
     """
     Filter and format the layer name extracted from the HTML soup.
 
@@ -336,7 +342,11 @@ def filter_layer_name (soup):
     # Replace non-alphanumeric characters with underscores
     layer_name = re.sub(r'\W+', '_', layer_name) 
 
-    return layer_name
+    pattern = re.compile(r'Spatial Reference:\s*(\d+)')
+    match = soup.find(string=pattern)
+    crs = int(pattern.search(match).group(1))
+
+    return layer_name, crs
 
 def download_data (url, shp, export_path):
     """
@@ -367,11 +377,11 @@ def download_data (url, shp, export_path):
 
             elif check_if_vector (soup):
                 # Extract and filter the layer name from the HTML content
-                layer_name = filter_layer_name (soup)
+                layer_name, crs = filter_layer_name_and_crs (soup)
                 # Export information to sheets
                 info_to_sheets (export_path, soup, layer_name, url)
                 # Get the bounding box and CRS of the shapefile
-                bbox, crs = bbox_shp (shp)
+                bbox = bbox_shp (shp, crs)
                 # Extract page data to GeoJSON
                 geojson_out_path = run_esri2geojson (url, bbox, crs, layer_name, export_path)
                 break
