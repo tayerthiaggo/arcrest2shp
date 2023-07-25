@@ -1,4 +1,3 @@
-
 import os
 import geopandas as gpd
 import subprocess
@@ -274,17 +273,18 @@ def info_to_sheets (export_path, soup, layer_name, url):
 
 def create_csv (export_path):
     # Define the file path
-    file_path = os.path.join(export_path, 'extracted_data.csv')
+    csv_path = os.path.join(export_path, 'extracted_data.csv')
     #define columns
     columns = ['Source', 'Name', 'Geometry Type', 'Description', 'URL', 'Extraction Date']
     # Check if the file exists
-    file_exists = os.path.isfile(file_path)
+    file_exists = os.path.isfile(csv_path)
     # Write the extracted information to the CSV file
-    with open(file_path, 'a', newline='') as csvfile:
+    with open(csv_path, 'a', newline='') as csvfile:
         writer = csv.writer(csvfile)
         # Write header row if the file is newly created
         if not file_exists:
             writer.writerow(columns)
+    return csv_path
 
 def write_csv (file_path, data):
     # Check if the file exists
@@ -398,3 +398,16 @@ def download_data (url, shp, export_path):
         return geojson_out_path
     else:
         print(url, "\nRequest failed with status code:", response.status_code)
+
+def check_csv_entries(csv_path, shapefile_folder_path):
+    shapefile_names = []
+    for filename in os.listdir(shapefile_folder_path):
+        if filename.endswith(".shp"):  # Assuming shapefiles have the .shp extension
+            shapefile_names.append(filename[:-4])
+
+    # Read the CSV into a pandas DataFrame
+    df = pd.read_csv(csv_path)  
+    # Keep only the rows where the file name is present in the shapefile names
+    df = df[df['Name'].isin(shapefile_names)]
+    # Write the filtered DataFrame back to the CSV file
+    df.to_csv(csv_path, index=False)

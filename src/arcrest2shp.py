@@ -1,5 +1,5 @@
 import concurrent.futures
-from arcrest2shp_utils import create_folder, create_csv, process_links, bbox_shp, download_data, clip_geojson_export_shp
+from arcrest2shp_utils import create_folder, create_csv, process_links, bbox_shp, download_data, clip_geojson_export_shp, check_csv_entries
 
 def arcrest2shp (url_base, shp, out_path, num_threads = 10):
     def process_url(url):
@@ -23,7 +23,7 @@ def arcrest2shp (url_base, shp, out_path, num_threads = 10):
     geojson_out_path = create_folder (export_path, 'geojson') # GeoJSON folder
     shp_out_path = create_folder (export_path, 'shp') # Shapefile folder 
     # Create a CSV file in the export_path
-    create_csv (export_path)
+    csv_path = create_csv (export_path)
 
     # Retrieve all links from the URL base
     cache = {}  # Dictionary to cache retrieved links
@@ -38,3 +38,5 @@ def arcrest2shp (url_base, shp, out_path, num_threads = 10):
     # Use ThreadPoolExecutor to execute the function concurrently
     with concurrent.futures.ThreadPoolExecutor(max_workers=num_threads) as executor:
         executor.map(process_url, filtered_data)
+
+    check_csv_entries (csv_path, shp_out_path)
