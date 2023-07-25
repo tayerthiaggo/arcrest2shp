@@ -166,6 +166,14 @@ def run_esri2geojson (url, bbox, crs, layer_name, export_path):
         subprocess.CalledProcessError: If the 'esri2geojson' command fails to execute.
     """
     geojson_out_path = os.path.join(export_path, 'geojson', f'{layer_name}.geojson')
+
+    count = 0
+    while os.path.exists(geojson_out_path):
+        count += 1
+        geojson_out_path = os.path.join(
+            export_path, 'geojson', f'{layer_name}_{str(count)}.geojson'
+        )
+
     # Edit geometry for input
     geometry_str = ''.join(['geometry=', ','.join([str(num) for num in bbox])])
     # Edit crs for input 
