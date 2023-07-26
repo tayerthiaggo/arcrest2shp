@@ -104,7 +104,6 @@ def process_links(url, cache, visited):
             processed_links.append(link)
             processed_links.extend(process_links(link, cache, visited))
     return processed_links
-
 ## Not used (API protection against attack)
 def process_links_mthread (url, cache, visited, num_threads):
     """
@@ -137,7 +136,6 @@ def process_links_mthread (url, cache, visited, num_threads):
             processed_links.extend(future.result())
 
     return processed_links
-
 def bbox_shp (shp, crs):
     # Read the shapefile using geopandas
     gdf = gpd.read_file(shp)
@@ -147,7 +145,6 @@ def bbox_shp (shp, crs):
     bbox = list(gdf.to_crs(crs).total_bounds)
 
     return bbox
-    
 def run_esri2geojson (url, bbox, crs, layer_name, export_path):
     """
     Runs the 'esri2geojson' command-line tool to convert data from an Esri service to GeoJSON format.
@@ -188,7 +185,6 @@ def run_esri2geojson (url, bbox, crs, layer_name, export_path):
         print(f'{url} An error occurred while executing the run_esri2geojson.')
 
     return geojson_out_path
-
 def clip_geojson_export_shp (shp, geojson_out_path, shp_out_path):
     """
     Clips a GeoJSON file using a polygon GeoDataFrame and exports the clipped data to a shapefile.
@@ -223,9 +219,12 @@ def clip_geojson_export_shp (shp, geojson_out_path, shp_out_path):
         if not clipped_gdf.empty:
             # Extract the file name without extension
             output_shapefile = f'{os.path.splitext(os.path.basename(geojson_out_path))[0]}.shp'
-            # Export the clipped GeoDataFrame to a shapefile
-            clipped_gdf.to_file(os.path.join(shp_out_path, output_shapefile))
 
+            out_shp = os.path.join(shp_out_path, output_shapefile)
+            # Export the clipped GeoDataFrame to a shapefile
+            clipped_gdf.to_file(out_shp)
+    
+    return clipped_gdf.empty, out_shp
 def check_if_vector (soup):
     """
     Check if the HTML page contains information about a vector geometry type.
@@ -245,8 +244,7 @@ def check_if_vector (soup):
         return True
     else:
         return False
-
-def info_to_sheets (export_path, soup, layer_name, url):
+def info_to_sheets (export_path, soup, layer_name, url, out_shp):
     """
     Write extracted information to a CSV file.
 
@@ -267,15 +265,14 @@ def info_to_sheets (export_path, soup, layer_name, url):
     # Get the current date
     extraction_date = datetime.date.today()
     # Create a list containing the extracted data
-    data = [source, layer_name, geometry_type, description_text, url, extraction_date]
+    data = [source, layer_name, geometry_type, description_text, url, extraction_date, out_shp]
     # Write the extracted data to the CSV file
     write_csv (file_path, data)
-
 def create_csv (export_path):
     # Define the file path
     csv_path = os.path.join(export_path, 'extracted_data.csv')
     #define columns
-    columns = ['Source', 'Name', 'Geometry Type', 'Description', 'URL', 'Extraction Date']
+    columns = ['Source', 'Name', 'Geometry Type', 'Description', 'URL', 'Extraction Date', 'Shp Path']
     # Check if the file exists
     file_exists = os.path.isfile(csv_path)
     # Write the extracted information to the CSV file
@@ -285,7 +282,6 @@ def create_csv (export_path):
         if not file_exists:
             writer.writerow(columns)
     return csv_path
-
 def write_csv (file_path, data):
     # Check if the file exists
     file_exists = os.path.isfile(file_path)
@@ -294,7 +290,6 @@ def write_csv (file_path, data):
         writer = csv.writer(csvfile)
         # Write the new row of data
         writer.writerow(data)
-
 def filter_layer_name_and_crs (soup):
     """
     Filter and format the layer name extracted from the HTML soup.
@@ -355,8 +350,7 @@ def filter_layer_name_and_crs (soup):
     crs = int(pattern.search(match).group(1))
 
     return layer_name, crs
-
-def download_data (url, shp, export_path):
+def download_data (url, shp, export_path, shp_out_path):
     """
     Downloads data from the given URL, processes it, and exports the extracted information to a GeoJSON file.
 
@@ -386,28 +380,44 @@ def download_data (url, shp, export_path):
             elif check_if_vector (soup):
                 # Extract and filter the layer name from the HTML content
                 layer_name, crs = filter_layer_name_and_crs (soup)
-                # Export information to sheets
-                info_to_sheets (export_path, soup, layer_name, url)
+            
                 # Get the bounding box and CRS of the shapefile
                 bbox = bbox_shp (shp, crs)
                 # Extract page data to GeoJSON
                 geojson_out_path = run_esri2geojson (url, bbox, crs, layer_name, export_path)
+
+                # Clip the downloaded GeoJSON with the shapefile and save the clipped result as a shapefile
+                clipped_status, out_shp = clip_geojson_export_shp (shp, geojson_out_path, shp_out_path)
+
+                if not clipped_status:
+                    # Export information to sheets
+                    info_to_sheets (export_path, soup, layer_name, url, out_shp)
                 break
             else:
                 pass     
-        return geojson_out_path
+        # return geojson_out_path
     else:
         print(url, "\nRequest failed with status code:", response.status_code)
+def check_geojson (geojson_out_path, csv_path):
+    # Initialize a list to store the names of GeoJSON files found in the 'geojson_out_path'
+    geojson_file_names = []
+    # Loop through the files in the 'geojson_out_path' directory
+    for filename in os.listdir(geojson_out_path):
+        # Check if the file ends with the '.geojson' extension
+        if filename.endswith('.geojson'):
+            # If so, add the filename to the list
+            geojson_file_names.append(filename)
 
-def check_csv_entries(csv_path, shapefile_folder_path):
-    shapefile_names = []
-    for filename in os.listdir(shapefile_folder_path):
-        if filename.endswith(".shp"):  # Assuming shapefiles have the .shp extension
-            shapefile_names.append(filename[:-4])
+    # Read the CSV file containing the list of filenames and store them in a set
+    with open(csv_path, 'r') as csv_file:
+        csv_reader = csv.reader(csv_file)
+        next(csv_reader)  # Skip the header if needed
+        csv_filenames = {f'{row[1]}.geojson' for row in csv_reader}
 
-    # Read the CSV into a pandas DataFrame
-    df = pd.read_csv(csv_path)  
-    # Keep only the rows where the file name is present in the shapefile names
-    df = df[df['Name'].isin(shapefile_names)]
-    # Write the filtered DataFrame back to the CSV file
-    df.to_csv(csv_path, index=False)
+    # Iterate through the GeoJSON files found earlier
+    for filename in geojson_file_names:
+        # Check if the filename is not present in the set of filenames from the CSV
+        if filename not in csv_filenames:
+            # If not, construct the full file path and remove the file from disk
+            file_path = os.path.join(geojson_out_path, filename)
+            os.remove(file_path)
