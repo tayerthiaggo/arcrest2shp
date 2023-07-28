@@ -1,4 +1,4 @@
-beautifulsoup4=>4.12.2
-geopandas=>0.13.2
-requests=>2.31.0
-esridump => 1.13.0
+beautifulsoup4>=4.12.2
+geopandas>=0.13.2
+requests>=2.31.0
+esridump>=1.13.0
